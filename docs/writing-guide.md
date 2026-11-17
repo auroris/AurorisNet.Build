@@ -5,8 +5,8 @@ implement it. Lead with the capability or action and explain the result the read
 expect.
 
 This guide adapts the plain language, concrete explanation and revision discipline of the
-Morlencir Empire's [general writing guide](Morlencir-Empire/docs/writing/repository.md) and
-[reference-manual guide](Morlencir-Empire/docs/writing/morlencir-reference-manual.md) for
+Morlencir Empire's general writing guide and
+reference-manual guide for
 software documentation. Apply it alongside each repository's technical conventions.
 
 ## Lead with what the software does
