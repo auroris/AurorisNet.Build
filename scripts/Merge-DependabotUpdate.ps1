@@ -16,6 +16,8 @@ Every other update is squash-merged. It ships, and starts the Release workflow, 
 Updates of test packages, samples and workflow actions change nothing a consumer installs, so they merge without a
 release. The Release workflow starts with test set to false, because the pull request's checks have just run. With
 -Versioning semver it also gets bump: minor for a minor NuGet update, which can add API surface, and patch otherwise.
+A package with no release tag yet has no version to raise, so its update merges and the first release is left to a
+person.
 
 GH_TOKEN and GH_REPO must be set.
 
@@ -108,6 +110,15 @@ if (-not $shipped) {
 }
 
 $inputs = @('-f', 'test=false', '-f', "notes=Updates $($shipped -join ', ').")
+if ($Versioning -eq 'semver' -and -not $DryRun) {
+    # Before the package has a first release tag there is no version to raise, so a person publishes the first one.
+    $tags = @(gh api "repos/$env:GH_REPO/git/matching-refs/tags/v" --jq '.[].ref')
+    if ($LASTEXITCODE -ne 0) { throw 'Could not list the release tags.' }
+    if (-not $tags) {
+        Write-Host "::notice::Merged the update of $($shipped -join ', '). The package has no release yet, so run $ReleaseWorkflow with its first version."
+        return
+    }
+}
 if ($Versioning -eq 'semver') {
     $inputs += @('-f', "bump=$($Ecosystem -eq 'nuget' -and $UpdateType -eq 'version-update:semver-minor' ? 'minor' : 'patch')")
 }
