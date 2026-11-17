@@ -87,6 +87,13 @@ them, and workflow actions. The Umbraco packages leave `Umbraco.Cms*` to
 - starts `release.yml` when the update is of a package that a shipped project references.
   Updates of test packages and workflow actions merge without a release.
 
+AppHost's pull request for a new Umbraco release groups Umbraco, uSync and the AurorisNet
+packages, because they must move together. Its build fails while AppBlocks,
+ApplicationVirtualPathFix or DisableTelemetry has no package for that Umbraco release yet.
+Dependabot updates the pull request as those packages appear, and it merges once all of
+them are on nuget.org. Until AppHost has merged it, a local AppHost build against a newer
+AppBlocks checkout stops with a message that the two name different Umbraco releases.
+
 ## Starting a release by hand
 
 Open **Actions → Release → Run workflow** on `main`.
