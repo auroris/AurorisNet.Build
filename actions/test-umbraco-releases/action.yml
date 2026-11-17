@@ -1,0 +1,49 @@
+name: Test Umbraco releases
+description: Lists the releases under test in UmbracoReleases, runs the package's tests on each and writes JSON summaries.
+
+# Used by the New Umbraco releases workflow. Needs a checkout of the package repository and the .NET SDK. The step always
+# succeeds: the summaries in artifacts/ carry the results, and the report job acts on them.
+inputs:
+  releases:
+    description: The releases to test, separated by commas.
+    required: true
+  command:
+    description: >-
+      A PowerShell command that tests one release, named in $env:UMBRACO_RELEASE. It runs once for each release and
+      passes when it exits with 0. The summary goes to artifacts/tests.json.
+    default: ''
+  script:
+    description: >-
+      Used instead of command by a package with a test matrix of its own. PowerShell that tests every release in
+      $env:RELEASES and writes its own summaries to artifacts/.
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # A package with an exact upper Umbraco version restores only the releases it lists, and every package's tests
+    # build against the listed releases.
+    - name: List the releases for the tests
+      shell: pwsh
+      env:
+        RELEASES: ${{ inputs.releases }}
+      run: |
+        & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Add-UmbracoRelease.ps1') -Releases $env:RELEASES
+
+    - name: Run the tests
+      shell: pwsh
+      env:
+        RELEASES: ${{ inputs.releases }}
+        TEST_COMMAND: ${{ inputs.command }}
+        TEST_SCRIPT: ${{ inputs.script }}
+      run: |
+        if ($env:TEST_SCRIPT) {
+          pwsh -NoProfile -NonInteractive -Command $env:TEST_SCRIPT
+        }
+        elseif ($env:TEST_COMMAND) {
+          pwsh -NoProfile -File (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Test-UmbracoReleases.ps1') `
+            -Releases $env:RELEASES -Command $env:TEST_COMMAND
+        }
+        else { throw 'Give the action a command or a script.' }
+        Write-Host "The tests exited with $LASTEXITCODE. The report job reads the summaries."
+        exit 0

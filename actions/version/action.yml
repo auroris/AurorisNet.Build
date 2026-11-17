@@ -1,0 +1,68 @@
+name: Choose the version
+description: Chooses the package version and release tag for a run of the Release workflow.
+
+# Used by release.yml in every package repository. The checkout must be the commit being released. The umbraco scheme
+# also needs the full history and tags, so check out with fetch-depth 0.
+inputs:
+  scheme:
+    description: >-
+      semver for a package numbered MAJOR.MINOR.PATCH, or umbraco for a package whose version follows the newest
+      supported Umbraco release, such as 18.3.2.1.
+    default: semver
+  version:
+    description: 'semver only: the version to publish. Empty raises the newest release tag.'
+    default: ''
+  bump:
+    description: 'semver only: patch or minor, the part of the newest stable tag to raise when version is empty.'
+    default: patch
+  dry-run:
+    description: true when the run publishes nothing. Only a dry run may start from a branch other than main.
+    default: 'false'
+outputs:
+  versions:
+    description: The versions to publish, newest first, separated by commas. The semver scheme gives one.
+    value: ${{ steps.version.outputs.versions }}
+  version:
+    description: The first of the versions.
+    value: ${{ steps.version.outputs.version }}
+  prerelease:
+    description: true when the version has a prerelease suffix.
+    value: ${{ steps.version.outputs.prerelease }}
+
+runs:
+  using: composite
+  steps:
+    - name: Choose the version
+      id: version
+      shell: pwsh
+      env:
+        SCHEME: ${{ inputs.scheme }}
+        RELEASE_VERSION: ${{ inputs.version }}
+        RELEASE_BUMP: ${{ inputs.bump || 'patch' }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        RELEASE_COMMIT: ${{ github.sha }}
+        RELEASE_BRANCH: ${{ github.ref_name }}
+        RELEASE_REF: ${{ github.ref }}
+        REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+      run: |
+        $scripts = Join-Path $env:GITHUB_ACTION_PATH '../../scripts'
+        if ($env:SCHEME -eq 'umbraco') {
+          $releases = @(& "$scripts/Get-UmbracoAlignedVersion.ps1" -BranchName $env:RELEASE_BRANCH -Commit $env:RELEASE_COMMIT)
+          $releases | Format-Table Umbraco, Version, Tag -AutoSize | Out-String | Write-Host
+          $versions = @($releases.Version)
+          $prerelease = $false
+        }
+        elseif ($env:SCHEME -eq 'semver') {
+          if ($env:DRY_RUN -ne 'true' -and $env:RELEASE_REF -ne 'refs/heads/main') {
+            throw 'Publish from main. Other branches can run a dry run.'
+          }
+          $release = & "$scripts/Get-SemanticVersion.ps1" -Version $env:RELEASE_VERSION -Bump $env:RELEASE_BUMP `
+            -Commit $env:RELEASE_COMMIT -RepositoryUrl $env:REPOSITORY_URL
+          Write-Host "Version $($release.Version), tag $($release.Tag)$($release.Tagged ? ', which already marks this commit' : '')."
+          $versions = @($release.Version)
+          $prerelease = $release.Prerelease
+        }
+        else { throw "Unknown scheme '$env:SCHEME'. Use semver or umbraco." }
+        "versions=$($versions -join ',')" >> $env:GITHUB_OUTPUT
+        "version=$($versions[0])" >> $env:GITHUB_OUTPUT
+        "prerelease=$($prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT

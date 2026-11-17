@@ -1,0 +1,40 @@
+name: Report Umbraco release results
+description: Commits the Umbraco releases that passed the tests and starts the Release workflow, and opens an issue for each that failed.
+
+# Used by the New Umbraco releases workflow. Needs a checkout of the package repository that kept its token, the
+# summaries in artifacts/, and permissions contents: write, issues: write and actions: write. It runs none of the code
+# under test.
+inputs:
+  releases:
+    description: The releases that were tested, separated by commas.
+    required: true
+  summaries:
+    description: The JSON summaries to read, separated by commas. A summary that is missing fails every release.
+    default: artifacts/tests.json
+  bump:
+    description: auto for a package numbered MAJOR.MINOR.PATCH. Empty for a package whose version follows the Umbraco release.
+    default: ''
+  release-workflow:
+    description: The workflow file that publishes the package.
+    default: release.yml
+  dry-run:
+    description: true to print the commit, the release and the issues without creating them.
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Commit the releases that passed, and open an issue for each that failed
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASES: ${{ inputs.releases }}
+        SUMMARIES: ${{ inputs.summaries }}
+        BUMP: ${{ inputs.bump }}
+        RELEASE_WORKFLOW: ${{ inputs.release-workflow }}
+        DRY_RUN: ${{ inputs.dry-run }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Submit-UmbracoReleaseResults.ps1') -Releases $env:RELEASES `
+          -Summaries $env:SUMMARIES -RunUrl $env:RUN_URL -Bump $env:BUMP -ReleaseWorkflow $env:RELEASE_WORKFLOW `
+          -Branch $env:GITHUB_REF_NAME -DryRun:($env:DRY_RUN -eq 'true')

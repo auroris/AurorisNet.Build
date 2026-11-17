@@ -1,0 +1,49 @@
+name: Find new Umbraco releases
+description: Finds the Umbraco releases on nuget.org that the package's UmbracoReleases does not list yet.
+
+# Used by the New Umbraco releases workflow. Needs a checkout of the package repository and permission issues: write.
+inputs:
+  releases:
+    description: Releases to test instead of the new ones, separated by commas.
+    default: ''
+  dry-run:
+    description: true to open no issue.
+    default: 'false'
+outputs:
+  releases:
+    description: The releases to test, separated by commas. Empty when there is none.
+    value: ${{ steps.find.outputs.releases }}
+
+runs:
+  using: composite
+  steps:
+    - name: Find the releases to test
+      id: find
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        REQUESTED: ${{ inputs.releases }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        $split = [StringSplitOptions]::RemoveEmptyEntries -bor [StringSplitOptions]::TrimEntries
+        $found = & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Find-UmbracoReleases.ps1')
+        if ($env:REQUESTED) {
+          $releases = @($env:REQUESTED.Split(',', $split))
+        }
+        else {
+          # Skip a release whose failure issue is still open. Closing the issue tests the release again.
+          $failing = @(gh issue list --state open --search 'fails the tests in:title' --json title | ConvertFrom-Json |
+            ForEach-Object { if ($_.title -match '^Umbraco (\S+) fails the tests$') { $Matches[1] } })
+          $releases = @($found.Releases | Where-Object { $_ -notin $failing })
+        }
+        Write-Host "New on NuGet: $($found.Releases -join ', ')"
+        Write-Host "To test: $($releases -join ', ')"
+        "releases=$($releases -join ',')" >> $env:GITHUB_OUTPUT
+
+        # A new major version needs code changes before it can be tested, so it gets an issue instead.
+        foreach ($release in $found.NewMajors) {
+          $title = "Support Umbraco $(([version] $release).Major)"
+          $open = gh issue list --state open --search "$title in:title" --json title | ConvertFrom-Json | Where-Object title -eq $title
+          if ($open -or $env:DRY_RUN -eq 'true') { Write-Host "$title, for $($release): $($open ? 'its issue is open' : 'dry run')"; continue }
+          gh issue create --title $title --body "NuGet has Umbraco $release, a major version the package does not support yet."
+        }

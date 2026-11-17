@@ -1,0 +1,99 @@
+name: Publish the packages
+description: Tags the release, pushes the packages to nuget.org with trusted publishing and publishes the GitHub release.
+
+# Used by release.yml in every package repository, after it has packed into the packages folder. The job needs
+# permissions contents: write and id-token: write.
+#
+# nuget.org trusts the calling repository's release.yml: its trusted publishing policy names the repository owner, the
+# repository and that workflow file. The steps here run inside the caller's job, so the policy matches. This is why
+# publishing is a composite action and not a reusable workflow, whose token would name this repository's workflow.
+inputs:
+  versions:
+    description: The versions to publish, newest first, separated by commas, as the version action gives them.
+    required: true
+  packages:
+    description: The folder that holds the .nupkg files, and .snupkg files when the package has symbols.
+    default: artifacts/packages
+  assets:
+    description: Other files to attach to the GitHub release, one per line. Wildcards are allowed.
+    default: ''
+  notes:
+    description: Notes in Markdown for the GitHub release, shown above the generated list of changes.
+    default: ''
+  dry-run:
+    description: true to keep the packages as an artifact of the run and publish nothing.
+    default: 'false'
+  nuget-user:
+    description: The nuget.org profile name that created the trusted publishing policy.
+    default: AurorisNet
+
+runs:
+  using: composite
+  steps:
+    # A dry run ends here, with the packages a release of this commit would publish. Nothing is tagged or published.
+    - name: Keep the packages of a dry run
+      if: inputs.dry-run == 'true'
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: packages-${{ github.run_id }}
+        path: |
+          ${{ inputs.packages }}/*.nupkg
+          ${{ inputs.packages }}/*.snupkg
+          ${{ inputs.assets }}
+        if-no-files-found: error
+        retention-days: 7
+
+    # Reserve every tag before publishing any package, so a retried run reuses them and no other run takes the version.
+    - name: Reserve the release tags
+      if: inputs.dry-run != 'true'
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_VERSIONS: ${{ inputs.versions }}
+        RELEASE_COMMIT: ${{ github.sha }}
+      run: |
+        foreach ($version in $env:RELEASE_VERSIONS.Split(',')) {
+          $tag = "v$version"
+          $existing = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" --jq .object.sha 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            if ($existing -cne $env:RELEASE_COMMIT) { throw "Tag $tag already marks commit $existing. Choose a new version." }
+            Write-Host "Tag $tag already marks this commit; finishing that release."
+            continue
+          }
+          gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:RELEASE_COMMIT" | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "Could not reserve the release tag $tag." }
+        }
+
+    # The key lasts one hour, so the login comes just before the push.
+    - name: Log in to NuGet with trusted publishing
+      if: inputs.dry-run != 'true'
+      id: nuget-login
+      uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+      with:
+        user: ${{ inputs.nuget-user }}
+
+    # Pushing a .nupkg also pushes the .snupkg beside it. A retried run skips the versions that are published already.
+    - name: Publish to NuGet
+      if: inputs.dry-run != 'true'
+      shell: pwsh
+      env:
+        NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        foreach ($package in Get-ChildItem -LiteralPath $env:PACKAGES -Filter *.nupkg | Sort-Object Name) {
+          dotnet nuget push $package.FullName --source https://api.nuget.org/v3/index.json --api-key "$env:NUGET_API_KEY" --skip-duplicate
+          if ($LASTEXITCODE -ne 0) { throw "Could not publish $($package.Name) to NuGet." }
+        }
+
+    - name: Publish the GitHub release
+      if: inputs.dry-run != 'true'
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        RELEASE_VERSIONS: ${{ inputs.versions }}
+        PACKAGES: ${{ inputs.packages }}
+        RELEASE_ASSETS: ${{ inputs.assets }}
+        RELEASE_NOTES: ${{ inputs.notes }}
+      run: |
+        & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Publish-GitHubRelease.ps1') -Versions $env:RELEASE_VERSIONS `
+          -Packages $env:PACKAGES -Assets $env:RELEASE_ASSETS -Notes $env:RELEASE_NOTES

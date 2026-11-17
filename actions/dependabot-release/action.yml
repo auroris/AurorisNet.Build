@@ -1,0 +1,54 @@
+name: Merge a Dependabot update and release
+description: Merges a Dependabot pull request whose checks passed, and starts the Release workflow when the update changes what the package ships.
+
+# Used by the dependabot job of ci.yml in every package repository, after the test job. The job needs permissions
+# contents: write, pull-requests: write and actions: write, which a workflow run for Dependabot only gets by asking.
+inputs:
+  shipped-projects:
+    description: Project files, or folders searched for project files, whose package references reach consumers. One per line.
+    default: src
+  versioning:
+    description: semver for a package numbered MAJOR.MINOR.PATCH, or umbraco for a package whose version follows the Umbraco release.
+    default: semver
+  npm-ships:
+    description: true when the package embeds files built from npm packages.
+    default: 'false'
+  npm-development-only:
+    description: The npm packages that only build, test or demonstrate, separated by commas.
+    default: ''
+  release-workflow:
+    description: The workflow file that publishes the package.
+    default: release.yml
+
+runs:
+  using: composite
+  steps:
+    # Only the project files are read, to tell shipped packages from test ones. Checked out before the merge, which
+    # deletes the pull request's branch.
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+
+    - name: Read Dependabot metadata
+      id: metadata
+      uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+    - name: Merge and release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+        ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+        DEPENDENCIES: ${{ steps.metadata.outputs.dependency-names }}
+        SHIPPED_PROJECTS: ${{ inputs.shipped-projects }}
+        VERSIONING: ${{ inputs.versioning }}
+        NPM_SHIPS: ${{ inputs.npm-ships }}
+        NPM_DEVELOPMENT_ONLY: ${{ inputs.npm-development-only }}
+        RELEASE_WORKFLOW: ${{ inputs.release-workflow }}
+      run: |
+        & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Merge-DependabotUpdate.ps1') -PullRequest $env:PR_NUMBER `
+          -UpdateType $env:UPDATE_TYPE -Ecosystem $env:ECOSYSTEM -Dependencies $env:DEPENDENCIES `
+          -ShippedProjects $env:SHIPPED_PROJECTS -Versioning $env:VERSIONING -NpmShips:($env:NPM_SHIPS -eq 'true') `
+          -NpmDevelopmentOnly $env:NPM_DEVELOPMENT_ONLY -ReleaseWorkflow $env:RELEASE_WORKFLOW

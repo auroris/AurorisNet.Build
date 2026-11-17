@@ -1,0 +1,183 @@
+name: New Umbraco releases
+
+# The reusable half of each Umbraco package's umbraco-releases.yml. Looks for new releases of the Umbraco major versions
+# the package supports, and runs the package's tests on those releases only. A release that passes is added to
+# UmbracoReleases on main, and the package's Release workflow starts and publishes a package for it. A release that
+# fails gets an issue. The calling workflow supplies the schedule and grants actions, contents and issues write.
+on:
+  workflow_call:
+    inputs:
+      runs-on:
+        description: The runner for the tests.
+        type: string
+        default: windows-latest
+      test-command:
+        description: >-
+          A PowerShell command that tests one release, named in $env:UMBRACO_RELEASE. It runs once for each release and
+          passes when it exits with 0.
+        type: string
+        default: ''
+      test-script:
+        description: >-
+          Used instead of test-command by a package with a test matrix of its own. PowerShell that tests every release
+          in $env:RELEASES and writes the summaries named in summaries.
+        type: string
+        default: ''
+      summaries:
+        description: The JSON summaries the tests write, separated by commas.
+        type: string
+        default: artifacts/tests.json
+      artifacts:
+        description: Further files to keep from the test job, one per line, beside the summaries and logs.
+        type: string
+        default: ''
+      bump:
+        description: auto for a package numbered MAJOR.MINOR.PATCH. Empty for a package whose version follows the Umbraco release.
+        type: string
+        default: ''
+      submodules:
+        description: true to check out the repository's submodules for the tests.
+        type: boolean
+        default: false
+      timeout-minutes:
+        description: The time limit of the test job.
+        type: number
+        default: 60
+      releases:
+        description: Releases to test instead of the new ones, separated by commas, such as 18.3.2,17.8.2.
+        type: string
+        default: ''
+      dry-run:
+        description: true to show the results in the run only, without a commit, a release or an issue.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  # GitHub disables a scheduled workflow in a public repository after 60 days without activity there. Enabling the
+  # workflow again restarts that count, so the daily check keeps running while Umbraco publishes nothing.
+  keep-enabled:
+    name: Keep the schedule enabled
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Enable the workflow again
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          # The reference is owner/repository/.github/workflows/<file>@<ref>, which names the calling workflow's file.
+          $file = ($env:WORKFLOW_REF -split '@')[0] -replace '^.*/', ''
+          gh workflow enable $file --repo $env:GITHUB_REPOSITORY
+
+  find:
+    name: Find new releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      releases: ${{ steps.find.outputs.releases }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: find
+        uses: auroris/AurorisNet.Build/actions/find-umbraco-releases@main
+        with:
+          releases: ${{ inputs.releases }}
+          dry-run: ${{ inputs.dry-run }}
+
+  # Builds and runs releases that NuGet published only just now, with everything they depend on. So this job can only
+  # read the repository, keeps no token in its checkout and has none in its environment. The report job acts on what
+  # it finds. A build or test that fails leaves this job successful, and the report job turns the failure into an issue.
+  test:
+    name: Test ${{ needs.find.outputs.releases }}
+    needs: find
+    if: needs.find.outputs.releases != ''
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: ${{ inputs.submodules }}
+          persist-credentials: false
+
+      # global.json keeps the build on a .NET 10 SDK, whichever other SDKs the runner has.
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: auroris/AurorisNet.Build/actions/test-umbraco-releases@main
+        with:
+          releases: ${{ needs.find.outputs.releases }}
+          command: ${{ inputs.test-command }}
+          script: ${{ inputs.test-script }}
+
+      - name: Keep the logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: umbraco-releases-${{ github.run_id }}
+          path: |
+            artifacts/*.json
+            artifacts/umbraco-releases/*/*.log
+            ${{ inputs.artifacts }}
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # The summaries alone, which is all the report job reads from this job.
+      - name: Pass the results to the report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: umbraco-release-results-${{ github.run_id }}
+          path: artifacts/*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # Commits the releases that passed, starts the Release workflow and opens the issues. This job has the token that
+  # can write to the repository, and it runs none of the code under test: it reads the summaries and reports.
+  report:
+    name: Report the results
+    needs: [find, test]
+    # Runs when the test job failed too, as on a timeout: the missing summaries then fail every release.
+    if: ${{ !cancelled() && needs.find.outputs.releases != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      issues: write
+      actions: write
+    steps:
+      # The checkout keeps its token, which pushes the commit that lists the releases that passed.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A summary that is missing, as when its tests never ran, fails every release in the report.
+      - name: Fetch the results
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: umbraco-release-results-${{ github.run_id }}
+          path: artifacts
+
+      - uses: auroris/AurorisNet.Build/actions/report-umbraco-releases@main
+        with:
+          releases: ${{ needs.find.outputs.releases }}
+          summaries: ${{ inputs.summaries }}
+          bump: ${{ inputs.bump }}
+          dry-run: ${{ inputs.dry-run }}
