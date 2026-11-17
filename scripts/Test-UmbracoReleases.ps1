@@ -45,8 +45,10 @@ $records = foreach ($release in $Releases) {
     $log = Join-Path $folder 'test.log'
     Write-Host "Testing Umbraco $release"
     $env:UMBRACO_RELEASE = $release
-    # The command sets the exit code of the process, whether it ends with a native command or throws.
-    pwsh -NoProfile -NonInteractive -Command "`$ErrorActionPreference = 'Stop'; $Command; exit `$LASTEXITCODE" *> $log
+    # The command sets the exit code of the process, whether it ends with a native command or throws. Encoding it keeps
+    # its quotes intact on every platform.
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes("`$ErrorActionPreference = 'Stop'; $Command; exit `$LASTEXITCODE"))
+    pwsh -NoProfile -NonInteractive -EncodedCommand $encoded *> $log
     $exitCode = $LASTEXITCODE
     # The test platform colors its output on a CI runner even when it goes to a file, so strip the codes before reading.
     $lines = @(Get-Content -LiteralPath $log) -replace '\e\[[0-9;?]*[A-Za-z]', ''

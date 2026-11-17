@@ -38,10 +38,11 @@ runs:
         TEST_SCRIPT: ${{ inputs.script }}
       run: |
         if ($env:TEST_SCRIPT) {
-          pwsh -NoProfile -NonInteractive -Command $env:TEST_SCRIPT
+          # Encoding the script keeps its quotes and line breaks intact on every platform.
+          pwsh -NoProfile -NonInteractive -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($env:TEST_SCRIPT)))
         }
         elseif ($env:TEST_COMMAND) {
-          pwsh -NoProfile -File (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Test-UmbracoReleases.ps1') `
+          & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Test-UmbracoReleases.ps1') `
             -Releases $env:RELEASES -Command $env:TEST_COMMAND
         }
         else { throw 'Give the action a command or a script.' }
