@@ -41,7 +41,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$split = [StringSplitOptions]::RemoveEmptyEntries -bor [StringSplitOptions]::TrimEntries
+# A release job that only downloads artifacts has no checkout, so the GitHub CLI cannot read the repository from git.
+if (-not $env:GH_REPO -and $env:GITHUB_REPOSITORY) { $env:GH_REPO = $env:GITHUB_REPOSITORY }
+$split =[StringSplitOptions]::RemoveEmptyEntries -bor [StringSplitOptions]::TrimEntries
 $Versions = @($Versions | ForEach-Object { $_.Split(',', $split) })
 $extra = @($Assets | ForEach-Object { $_.Split([string[]] @("`n"), $split) } | ForEach-Object {
     $found = @(Get-Item -Path $_ -ErrorAction SilentlyContinue | ForEach-Object FullName)
