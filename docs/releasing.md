@@ -3,7 +3,7 @@
 Each AurorisNet package follows one primary dependency. When that dependency publishes a
 release, the package's repository tests the package on that release and, when the tests
 pass, publishes a new package version to nuget.org and GitHub. A person can also start a
-release by hand.
+release by hand. One package, AurorisNet.ImageGallery.FFmpeg, releases by hand only.
 
 ## The three workflows
 
@@ -14,7 +14,8 @@ the actions and scripts in this repository, at `main`.
 |---|---|---|
 | `ci.yml` | A pull request, or by hand | Builds the package and runs its tests on the newest supported release of the primary dependency. Merges a Dependabot pull request that passes, and starts a release when the update changes what the package ships. |
 | `umbraco-releases.yml` (Umbraco packages) | Each day, or by hand | Looks on nuget.org for Umbraco releases the package does not list. Tests the package on those releases only. Adds each release that passes to `UmbracoReleases` on `main` and starts a release. Opens an issue for each release that fails. |
-| `release.yml` | By hand, or from the two above | Chooses the version, runs the tests unless the caller has just run them, packs, pushes to nuget.org and publishes the GitHub release. |
+| `upstream.yml` (ImageGallery.FFmpeg, in place of the one above) | By hand | Looks for a newer stable FFmpeg release, checks its signature, moves the pin on `main` and starts a release. |
+| `release.yml` | By hand, or from the ones above | Chooses the version, runs the tests unless the caller has just run them, packs, pushes to nuget.org and publishes the GitHub release. |
 
 The workflows test one release of the primary dependency: the newest, or the one that was
 just published. The full matrix of every supported release runs on a developer's machine,
@@ -26,7 +27,8 @@ changes the package's code.
 | Repository | Packages | Primary dependency | Found by | Version numbers |
 |---|---|---|---|---|
 | [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `AurorisNet.IdentityServer`, `AurorisNet.ActiveDirectory`, `AurorisNet.IdentityServer.Directory` | OpenIddict | Dependabot, daily | `1.2.3` |
-| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | None: the application as a Windows ZIP on GitHub | Magick.NET | Dependabot, daily | `1.2.3` |
+| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | None: the application as a Windows ZIP on GitHub | Magick.NET, and `AurorisNet.ImageGallery.FFmpeg` | Dependabot, daily | `1.2.3` |
+| [AurorisNet.ImageGallery.FFmpeg](https://github.com/auroris/AurorisNet.ImageGallery.FFmpeg) | `AurorisNet.ImageGallery.FFmpeg` | FFmpeg's stable releases | `upstream.yml`, started by hand | The FFmpeg release, such as `9.0.2` |
 | [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `AurorisNet.InteractiveReports`, `.Core`, `.AspNetCore`, `.Client.GraphQL`, `.Client.FileDownload` | The .NET platform packages (`Microsoft.Extensions.*`) | Dependabot, daily | `1.2.3` |
 | [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `AurorisNet.Pressroom.Client`, and the server as Windows and Linux archives | Microsoft.Playwright, which selects the Chromium build | Dependabot, daily | `1.2.3` |
 | [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `AurorisNet.Umbraco.AppBlocks`, `.Documents`, `.InteractiveReports`, `.Testing` | Umbraco | `umbraco-releases.yml` | `0.1.0-alpha.2` |
@@ -52,6 +54,11 @@ of Umbraco that can change in any release, so each package version accepts Umbra
 up to an exact one. Their version is that Umbraco release followed by a count, such as
 `18.3.2.1`. One release publishes a package for each supported Umbraco major version, so a
 site can float on `18.*` or `17.*`.
+
+**FFmpeg versions.** `AurorisNet.ImageGallery.FFmpeg` holds a build of FFmpeg, so its version
+is the FFmpeg release it was built from. A release with two numbers, such as 9.1, becomes
+package `9.1.0`. The version is in the repository's `.nuspec` file, and its `release.yml`
+has no `version`, `bump` or `test` input.
 
 ## How a new Umbraco release becomes a package
 
@@ -96,13 +103,30 @@ Dependabot updates the pull request as those packages appear, and it merges once
 them are on nuget.org. Until AppHost has merged it, a local AppHost build against a newer
 AppBlocks checkout stops with a message that the two name different Umbraco releases.
 
+## How a new FFmpeg release becomes a package
+
+AurorisNet.ImageGallery.FFmpeg releases by hand only, by design: a person decides when a
+new FFmpeg release becomes a package. Its workflows have no schedule.
+
+1. A person starts `upstream.yml`. It compares the newest stable FFmpeg release with the one
+   that `build/inputs.json` pins.
+2. For a newer release it checks the source tarball's signature against FFmpeg's release
+   key, commits the new version and checksum to `main`, and starts `release.yml`.
+3. `release.yml` builds FFmpeg on a Windows runner, packs it and runs the package test on a
+   sample of each input codec. It then publishes the package, and a GitHub release with the
+   matching sources as `ffmpeg-<version>-sources.zip`.
+4. Dependabot opens a pull request for the new package in ImageGallery, which becomes an
+   ImageGallery release as described above.
+
+`release.yml` on its own builds and publishes the version that is pinned already.
+
 ## Starting a release by hand
 
 Open **Actions → Release → Run workflow** on `main`.
 
 | Input | Use |
 |---|---|
-| `version` | The version to publish, such as `1.2.3` or `1.2.3-rc.1`. Leave empty to raise the newest tag. Packages with Umbraco-aligned versions have no such input. |
+| `version` | The version to publish, such as `1.2.3` or `1.2.3-rc.1`. Leave empty to raise the newest tag. Packages with Umbraco-aligned or FFmpeg versions have no such input. |
 | `bump` | `patch` or `minor`, when `version` is empty. |
 | `test` | Run the tests before publishing. On by default. |
 | `dry-run` | Build, test and pack, and keep the packages as an artifact of the run. Nothing is tagged or published. A dry run can start from any branch. |
@@ -143,9 +167,11 @@ its dependencies are on nuget.org:
 
 1. `AurorisNet.IdentityServer` (with `AurorisNet.ActiveDirectory` and
    `AurorisNet.IdentityServer.Directory`), `AurorisNet.InteractiveReports`,
-   `AurorisNet.Pressroom.Client`, ApplicationVirtualPathFix, DisableTelemetry, BreakGlass and Drawio depend on none.
+   `AurorisNet.Pressroom.Client`, `AurorisNet.ImageGallery.FFmpeg`, ApplicationVirtualPathFix,
+   DisableTelemetry, BreakGlass and Drawio depend on none.
 2. `AurorisNet.Umbraco.IdentityServer.SSO` and `AurorisNet.Umbraco.IdentityServer.Directory`
-   need the IdentityServer packages. AppBlocks needs `AurorisNet.InteractiveReports` and `AurorisNet.Pressroom.Client`.
+   need the IdentityServer packages. AppBlocks needs `AurorisNet.InteractiveReports` and
+   `AurorisNet.Pressroom.Client`. ImageGallery needs `AurorisNet.ImageGallery.FFmpeg`.
 3. AppHost needs AppBlocks, BreakGlass, both Umbraco IdentityServer packages,
    ApplicationVirtualPathFix and DisableTelemetry.
 

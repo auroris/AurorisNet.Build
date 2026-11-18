@@ -49,6 +49,7 @@ another Chromium-based browser.
 |---|---|
 | AurorisNet.IdentityServer | A key (`AurorisNet.IdentityServer`), an organisation tree (`AurorisNet.ActiveDirectory`), a person under a magnifying glass (`AurorisNet.IdentityServer.Directory`) |
 | AurorisNet.ImageGallery | A framed photograph |
+| AurorisNet.ImageGallery.FFmpeg | A strip of film with a play triangle |
 | AurorisNet.InteractiveReports | A table |
 | AurorisNet.Pressroom | A printed page |
 | AurorisNet.Umbraco.AppBlocks | Three stacked blocks |
