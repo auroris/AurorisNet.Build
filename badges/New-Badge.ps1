@@ -40,14 +40,14 @@ function Get-TextWidth([string] $text) {
     $width = 0
     foreach ($character in $text.ToCharArray()) {
         $width += switch -CaseSensitive -Regex ([string] $character) {
-            '[ijl.,:;|!'']' { 35 }
-            '[ ]' { 39 }
-            '[ftrI]' { 45 }
-            '[mw]' { 100 }
-            '[MW]' { 105 }
-            '[A-Z]' { 75 }
-            '[0-9]' { 70 }
-            default { 66 }
+            '[ijl.,:;|!'']' { 35; break }
+            '[ ]' { 39; break }
+            '[ftrI]' { 45; break }
+            '[mw]' { 100; break }
+            '[MW]' { 105; break }
+            '[A-Z]' { 75; break }
+            '[0-9]' { 70; break }
+            default { 66; break }
         }
     }
     $width

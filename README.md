@@ -31,6 +31,7 @@ workflow run, so the repositories stay alike without copies to keep in step.
 |---|---|
 | [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `ci.yml`, `release.yml` |
 | [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `ci.yml`, `release.yml` |
+| [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `ci.yml`, `release.yml` |
 | [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
 | [AurorisNet.Umbraco.AppHost](https://github.com/auroris/AurorisNet.Umbraco.AppHost) | `ci.yml`, `release.yml` |
 | [AurorisNet.Umbraco.ApplicationVirtualPathFix](https://github.com/auroris/AurorisNet.Umbraco.ApplicationVirtualPathFix) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |

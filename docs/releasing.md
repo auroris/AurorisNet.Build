@@ -27,6 +27,7 @@ changes the package's code.
 |---|---|---|---|---|
 | [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `AurorisNet.IdentityServer`, `AurorisNet.ActiveDirectory`, `AurorisNet.IdentityServer.Directory` | OpenIddict | Dependabot, daily | `1.2.3` |
 | [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `AurorisNet.InteractiveReports`, `.Core`, `.AspNetCore`, `.Client.GraphQL`, `.Client.FileDownload` | The .NET platform packages (`Microsoft.Extensions.*`) | Dependabot, daily | `1.2.3` |
+| [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `AurorisNet.Pressroom.Client`, and the server as Windows and Linux archives | Microsoft.Playwright, which selects the Chromium build | Dependabot, daily | `1.2.3` |
 | [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `AurorisNet.Umbraco.AppBlocks`, `.Documents`, `.InteractiveReports`, `.Testing` | Umbraco | `umbraco-releases.yml` | `0.1.0-alpha.2` |
 | [AurorisNet.Umbraco.AppHost](https://github.com/auroris/AurorisNet.Umbraco.AppHost) | `AurorisNet.Umbraco.AppHost`, `.Testing` | AppBlocks, with the Umbraco release it pins | Dependabot, daily | `1.0.0-alpha.2` |
 | [AurorisNet.Umbraco.ApplicationVirtualPathFix](https://github.com/auroris/AurorisNet.Umbraco.ApplicationVirtualPathFix) | `AurorisNet.Umbraco.ApplicationVirtualPathFix` | Umbraco | `umbraco-releases.yml` | `18.3.2.1` |
@@ -141,9 +142,9 @@ its dependencies are on nuget.org:
 
 1. `AurorisNet.IdentityServer` (with `AurorisNet.ActiveDirectory` and
    `AurorisNet.IdentityServer.Directory`), `AurorisNet.InteractiveReports`,
-   ApplicationVirtualPathFix, DisableTelemetry, BreakGlass and Drawio depend on none.
+   `AurorisNet.Pressroom.Client`, ApplicationVirtualPathFix, DisableTelemetry, BreakGlass and Drawio depend on none.
 2. `AurorisNet.Umbraco.IdentityServer.SSO` and `AurorisNet.Umbraco.IdentityServer.Directory`
-   need the IdentityServer packages. AppBlocks needs `AurorisNet.InteractiveReports`.
+   need the IdentityServer packages. AppBlocks needs `AurorisNet.InteractiveReports` and `AurorisNet.Pressroom.Client`.
 3. AppHost needs AppBlocks, BreakGlass, both Umbraco IdentityServer packages,
    ApplicationVirtualPathFix and DisableTelemetry.
 

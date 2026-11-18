@@ -49,6 +49,7 @@ another Chromium-based browser.
 |---|---|
 | AurorisNet.IdentityServer | A key (`AurorisNet.IdentityServer`), an organisation tree (`AurorisNet.ActiveDirectory`), a person under a magnifying glass (`AurorisNet.IdentityServer.Directory`) |
 | AurorisNet.InteractiveReports | A table |
+| AurorisNet.Pressroom | A printed page |
 | AurorisNet.Umbraco.AppBlocks | Three stacked blocks |
 | AurorisNet.Umbraco.AppHost | A house built of blocks |
 | AurorisNet.Umbraco.ApplicationVirtualPathFix | `~/`, the application-relative path |
