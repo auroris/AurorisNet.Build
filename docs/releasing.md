@@ -26,6 +26,7 @@ changes the package's code.
 | Repository | Packages | Primary dependency | Found by | Version numbers |
 |---|---|---|---|---|
 | [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `AurorisNet.IdentityServer`, `AurorisNet.ActiveDirectory`, `AurorisNet.IdentityServer.Directory` | OpenIddict | Dependabot, daily | `1.2.3` |
+| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | None: the application as a Windows ZIP on GitHub | Magick.NET | Dependabot, daily | `1.2.3` |
 | [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `AurorisNet.InteractiveReports`, `.Core`, `.AspNetCore`, `.Client.GraphQL`, `.Client.FileDownload` | The .NET platform packages (`Microsoft.Extensions.*`) | Dependabot, daily | `1.2.3` |
 | [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `AurorisNet.Pressroom.Client`, and the server as Windows and Linux archives | Microsoft.Playwright, which selects the Chromium build | Dependabot, daily | `1.2.3` |
 | [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `AurorisNet.Umbraco.AppBlocks`, `.Documents`, `.InteractiveReports`, `.Testing` | Umbraco | `umbraco-releases.yml` | `0.1.0-alpha.2` |

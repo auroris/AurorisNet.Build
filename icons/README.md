@@ -48,6 +48,7 @@ another Chromium-based browser.
 | Repository | Glyph |
 |---|---|
 | AurorisNet.IdentityServer | A key (`AurorisNet.IdentityServer`), an organisation tree (`AurorisNet.ActiveDirectory`), a person under a magnifying glass (`AurorisNet.IdentityServer.Directory`) |
+| AurorisNet.ImageGallery | A framed photograph |
 | AurorisNet.InteractiveReports | A table |
 | AurorisNet.Pressroom | A printed page |
 | AurorisNet.Umbraco.AppBlocks | Three stacked blocks |

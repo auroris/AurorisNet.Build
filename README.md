@@ -30,6 +30,7 @@ workflow run, so the repositories stay alike without copies to keep in step.
 | Repository | Workflows that call this repository |
 |---|---|
 | [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `ci.yml`, `release.yml` |
+| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | `ci.yml`, `release.yml` |
 | [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `ci.yml`, `release.yml` |
 | [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `ci.yml`, `release.yml` |
 | [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
