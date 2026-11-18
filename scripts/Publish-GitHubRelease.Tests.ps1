@@ -35,6 +35,12 @@ Describe 'Publishing GitHub releases' {
         { & $script -Versions '9.9.9' -Packages $packages -DryRun } | Should -Throw '*No package for 9.9.9*'
     }
 
+    It 'releases the assets alone when an application ships no package' {
+        $output = (& $script -Versions '9.9.9' -Packages (Join-Path $packages 'none') -Assets (Join-Path $packages '*.txt') -DryRun 6>&1) -join "`n"
+        $output | Should -BeLike '*gh release create v9.9.9 *SHA256SUMS.txt --verify-tag --title 9.9.9 --generate-notes --latest'
+        $output | Should -Not -BeLike '*.nupkg*'
+    }
+
     It 'stops when an asset is missing' {
         { & $script -Versions '1.2.3' -Packages $packages -Assets (Join-Path $packages 'missing.zip') -DryRun } | Should -Throw '*No file matches*'
     }

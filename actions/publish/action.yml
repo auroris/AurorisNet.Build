@@ -1,5 +1,5 @@
 name: Publish the packages
-description: Tags the release, pushes the packages to nuget.org with trusted publishing and publishes the GitHub release.
+description: Tags the release, pushes any packages to nuget.org with trusted publishing and publishes the GitHub release.
 
 # Used by release.yml in every package repository, after it has packed into the packages folder. The job needs
 # permissions contents: write and id-token: write.
@@ -64,9 +64,19 @@ runs:
           if ($LASTEXITCODE -ne 0) { throw "Could not reserve the release tag $tag." }
         }
 
+    # A repository that ships an application and no package skips nuget.org and publishes its assets on GitHub alone.
+    - name: Look for NuGet packages
+      id: packages
+      shell: pwsh
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        $found = (Test-Path -LiteralPath $env:PACKAGES) -and @(Get-ChildItem -LiteralPath $env:PACKAGES -Filter *.nupkg).Count -gt 0
+        "found=$($found.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
     # The key lasts one hour, so the login comes just before the push.
     - name: Log in to NuGet with trusted publishing
-      if: inputs.dry-run != 'true'
+      if: inputs.dry-run != 'true' && steps.packages.outputs.found == 'true'
       id: nuget-login
       uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
       with:
@@ -74,7 +84,7 @@ runs:
 
     # Pushing a .nupkg also pushes the .snupkg beside it. A retried run skips the versions that are published already.
     - name: Publish to NuGet
-      if: inputs.dry-run != 'true'
+      if: inputs.dry-run != 'true' && steps.packages.outputs.found == 'true'
       shell: pwsh
       env:
         NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}

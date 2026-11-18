@@ -8,10 +8,11 @@ Most releases have one version. A package whose version follows the Umbraco rele
 supported Umbraco major version, such as 18.3.2.1 and 17.8.2.1, and lists the newest first.
 
 Each release gets the files in -Packages whose names end in its version: <id>.<version>.nupkg and .snupkg. The first
-release also gets the files in -Assets, the notes in -Notes and GitHub's generated list of changes. A version with a
-prerelease suffix is marked as a prerelease. Otherwise the first release becomes the latest release unless a newer one
-is published already, as when a run retries an older commit's release. Each other release points to the first, since it
-publishes the same package under another version number.
+release also gets the files in -Assets, the notes in -Notes and GitHub's generated list of changes. A repository that
+ships an application and no package releases its assets alone. A version with a prerelease suffix is marked as a
+prerelease. Otherwise the first release becomes the latest release unless a newer one is published already, as when a
+run retries an older commit's release. Each other release points to the first, since it publishes the same package
+under another version number.
 
 A release that exists already belongs to an earlier attempt of the same run, so its files are uploaded again.
 The tags must exist, and GH_TOKEN and GITHUB_REPOSITORY must be set.
@@ -61,10 +62,14 @@ function Invoke-GitHub([string[]] $arguments) {
 for ($i = 0; $i -lt $Versions.Count; $i++) {
     $version = $Versions[$i]
     $tag = "v$version"
-    $files = @(Get-ChildItem -LiteralPath $Packages -File | Where-Object { $_.Name -like "*.$version.nupkg" -or $_.Name -like "*.$version.snupkg" } |
-        ForEach-Object FullName)
-    if (-not $files) { throw "No package for $version is in $Packages." }
+    $files = @()
+    if (Test-Path -LiteralPath $Packages) {
+        $files = @(Get-ChildItem -LiteralPath $Packages -File | Where-Object { $_.Name -like "*.$version.nupkg" -or $_.Name -like "*.$version.snupkg" } |
+            ForEach-Object FullName)
+    }
     if ($i -eq 0) { $files += $extra }
+    # An application that ships no NuGet package releases its assets alone.
+    if (-not $files) { throw "No package for $version is in $Packages, and the release has no other asset." }
 
     $exists = $false
     if (-not $DryRun) {
