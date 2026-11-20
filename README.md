@@ -5,7 +5,7 @@ package repositories share.
 
 ![MIT license](https://raw.githubusercontent.com/auroris/AurorisNet.Build/main/badges/license-mit.svg)
 
-Each package repository keeps three short workflow files and calls the actions and scripts
+Each package repository keeps a few short workflow files and calls the actions and scripts
 here for the steps they have in common. A change here reaches every repository on its next
 workflow run, so the repositories stay alike without copies to keep in step.
 
@@ -15,8 +15,10 @@ workflow run, so the repositories stay alike without copies to keep in step.
 |---|---|---|
 | [`actions/version`](actions/version/action.yml) | Chooses the version and tag of a release: `MAJOR.MINOR.PATCH`, or a version that follows the Umbraco release. | `release.yml` in every repository |
 | [`actions/publish`](actions/publish/action.yml) | Reserves the tag, pushes the packages to nuget.org with trusted publishing and publishes the GitHub release. | `release.yml` in every repository |
-| [`actions/dependabot-release`](actions/dependabot-release/action.yml) | Merges a Dependabot pull request that passed, and starts a release when the update ships. | `ci.yml` in every repository |
-| [`.github/workflows/umbraco-releases.yml`](.github/workflows/umbraco-releases.yml) | The reusable workflow that tests each new Umbraco release and releases the package for it. | `umbraco-releases.yml` in the Umbraco repositories |
+| [`actions/dependabot-release`](actions/dependabot-release/action.yml) | Merges a Dependabot pull request that passed, and records the update for the weekly release when it ships. | `ci.yml` in every repository |
+| [`.github/workflows/weekly-release.yml`](.github/workflows/weekly-release.yml) | The reusable workflow that publishes a week's merged updates as one release. | `weekly-release.yml` in every repository that releases on a schedule |
+| [`actions/weekly-release`](actions/weekly-release/action.yml) | Starts one release for the updates recorded since the last release tag. | The reusable workflow |
+| [`.github/workflows/umbraco-releases.yml`](.github/workflows/umbraco-releases.yml) | The reusable workflow that tests each new Umbraco release and records each that passes for the weekly release. | `umbraco-releases.yml` in the Umbraco repositories |
 | [`actions/find-umbraco-releases`](actions/find-umbraco-releases/action.yml), [`test-umbraco-releases`](actions/test-umbraco-releases/action.yml), [`report-umbraco-releases`](actions/report-umbraco-releases/action.yml) | The steps of that workflow. | The reusable workflow |
 | [`scripts/`](scripts) | The PowerShell behind the actions, each with Pester tests. | The actions, and developers who add an Umbraco release by hand |
 | [`badges/`](badges) | The static README badges, and `New-Badge.ps1`, which makes one. | Every README |
@@ -29,19 +31,19 @@ workflow run, so the repositories stay alike without copies to keep in step.
 
 | Repository | Workflows that call this repository |
 |---|---|
-| [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `ci.yml`, `release.yml` |
-| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | `ci.yml`, `release.yml` |
+| [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `ci.yml`, `release.yml`, `weekly-release.yml` |
+| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | `ci.yml`, `release.yml`, `weekly-release.yml` |
 | [AurorisNet.ImageGallery.FFmpeg](https://github.com/auroris/AurorisNet.ImageGallery.FFmpeg) | `ci.yml`, `release.yml` |
-| [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `ci.yml`, `release.yml` |
-| [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `ci.yml`, `release.yml` |
-| [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
-| [AurorisNet.Umbraco.AppHost](https://github.com/auroris/AurorisNet.Umbraco.AppHost) | `ci.yml`, `release.yml` |
-| [AurorisNet.Umbraco.ApplicationVirtualPathFix](https://github.com/auroris/AurorisNet.Umbraco.ApplicationVirtualPathFix) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
-| [AurorisNet.Umbraco.BreakGlass](https://github.com/auroris/AurorisNet.Umbraco.BreakGlass) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
-| [AurorisNet.Umbraco.DisableTelemetry](https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
-| [AurorisNet.Umbraco.Drawio](https://github.com/auroris/AurorisNet.Umbraco.Drawio) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
-| [AurorisNet.Umbraco.IdentityServer.Directory](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.Directory) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
-| [AurorisNet.Umbraco.IdentityServer.SSO](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.SSO) | `ci.yml`, `release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `ci.yml`, `release.yml`, `weekly-release.yml` |
+| [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `ci.yml`, `release.yml`, `weekly-release.yml` |
+| [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.Umbraco.AppHost](https://github.com/auroris/AurorisNet.Umbraco.AppHost) | `ci.yml`, `release.yml`, `weekly-release.yml` |
+| [AurorisNet.Umbraco.ApplicationVirtualPathFix](https://github.com/auroris/AurorisNet.Umbraco.ApplicationVirtualPathFix) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.Umbraco.BreakGlass](https://github.com/auroris/AurorisNet.Umbraco.BreakGlass) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.Umbraco.DisableTelemetry](https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.Umbraco.Drawio](https://github.com/auroris/AurorisNet.Umbraco.Drawio) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.Umbraco.IdentityServer.Directory](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.Directory) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
+| [AurorisNet.Umbraco.IdentityServer.SSO](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.SSO) | `ci.yml`, `release.yml`, `weekly-release.yml`, `umbraco-releases.yml` |
 
 ## Using an action
 
@@ -80,8 +82,8 @@ Invoke-Pester scripts
 ```
 
 `ci.yml` runs the same tests on each push and pull request. To try a workflow change
-without publishing, run a repository's Release workflow with `dry-run`, or its New Umbraco
-releases workflow with `dry-run` and a release to test.
+without publishing, run a repository's Release or Weekly release workflow with `dry-run`, or
+its New Umbraco releases workflow with `dry-run` and a release to test.
 
 ## License
 

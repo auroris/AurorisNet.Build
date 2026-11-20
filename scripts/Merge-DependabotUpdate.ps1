@@ -1,23 +1,27 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-Merges a Dependabot pull request that passed its checks, and starts the package's Release workflow when the update
+Merges a Dependabot pull request that passed its checks, and records the update for the weekly release when it
 changes what the package ships.
 
 .DESCRIPTION
 A major version update of a NuGet or npm package gets a comment and stays open for a person to review. Major updates of
 workflow actions merge, because the run that calls this script already used them.
 
-Every other update is squash-merged. It ships, and starts the Release workflow, when:
+Every other update is squash-merged. It ships when:
 
 - it is a NuGet update of a package that a project under -ShippedProjects references, or
 - it is an npm update, -NpmShips is set, and the package is outside -NpmDevelopmentOnly.
 
-Updates of test packages, samples and workflow actions change nothing a consumer installs, so they merge without a
-release. The Release workflow starts with test set to false, because the pull request's checks have just run. With
--Versioning semver it also gets bump: minor for a minor NuGet update, which can add API surface, and patch otherwise.
-A package with no release tag yet has no version to raise, so its update merges and the first release is left to a
-person.
+The merge commit of an update that ships ends with two lines, which Start-PendingRelease.ps1 reads when the weekly
+release runs:
+
+    Release-Bump: patch
+    Release-Note: Updates OpenIddict.Server.
+
+Release-Bump is minor for a minor NuGet update, which can add API surface, and patch otherwise. One release then
+publishes every update merged since the last one. Updates of test packages, samples and workflow actions change nothing
+a consumer installs, so their merge commits carry no such lines.
 
 GH_TOKEN and GH_REPO must be set.
 
@@ -42,12 +46,6 @@ Set when the package embeds files built from npm packages.
 .PARAMETER NpmDevelopmentOnly
 The npm packages that only build, test or demonstrate, and are never embedded.
 
-.PARAMETER Versioning
-semver for a package numbered MAJOR.MINOR.PATCH, or umbraco for a package whose version follows the Umbraco release.
-
-.PARAMETER ReleaseWorkflow
-The workflow file that publishes the package.
-
 .PARAMETER DryRun
 Prints the GitHub CLI commands instead of running them.
 #>
@@ -59,8 +57,6 @@ param(
     [string[]] $ShippedProjects = @('src'),
     [switch] $NpmShips,
     [string[]] $NpmDevelopmentOnly = @(),
-    [ValidateSet('semver', 'umbraco')][string] $Versioning = 'semver',
-    [string] $ReleaseWorkflow = 'release.yml',
     [switch] $DryRun
 )
 
@@ -103,24 +99,14 @@ elseif ($Ecosystem -in 'npm', 'npm_and_yarn' -and $NpmShips) {
     $shipped = @($updated | Where-Object { $_ -notin $NpmDevelopmentOnly })
 }
 
-Invoke-GitHub @('pr', 'merge', $PullRequest, '--squash', '--delete-branch')
 if (-not $shipped) {
-    Write-Host "Merged the $Ecosystem update of $($updated -join ', '). The package ships none of it, so there is no release."
+    Invoke-GitHub @('pr', 'merge', $PullRequest, '--squash', '--delete-branch')
+    Write-Host "Merged the $Ecosystem update of $($updated -join ', '). The package ships none of it, so there is nothing to release."
     return
 }
 
-$inputs = @('-f', 'test=false', '-f', "notes=Updates $($shipped -join ', ').")
-if ($Versioning -eq 'semver' -and -not $DryRun) {
-    # Before the package has a first release tag there is no version to raise, so a person publishes the first one.
-    $tags = @(gh api "repos/$env:GH_REPO/git/matching-refs/tags/v" --jq '.[].ref')
-    if ($LASTEXITCODE -ne 0) { throw 'Could not list the release tags.' }
-    if (-not $tags) {
-        Write-Host "::notice::Merged the update of $($shipped -join ', '). The package has no release yet, so run $ReleaseWorkflow with its first version."
-        return
-    }
-}
-if ($Versioning -eq 'semver') {
-    $inputs += @('-f', "bump=$($Ecosystem -eq 'nuget' -and $UpdateType -eq 'version-update:semver-minor' ? 'minor' : 'patch')")
-}
-Invoke-GitHub (@('workflow', 'run', $ReleaseWorkflow, '--ref', 'main') + $inputs)
-Write-Host "Merged the update of $($shipped -join ', ') and started $ReleaseWorkflow on main."
+# The body of the squash commit. Start-PendingRelease.ps1 finds these lines in the commits since the last release tag.
+$bump = $Ecosystem -eq 'nuget' -and $UpdateType -eq 'version-update:semver-minor' ? 'minor' : 'patch'
+$record = "Release-Bump: $bump`nRelease-Note: Updates $($shipped -join ', ')."
+Invoke-GitHub @('pr', 'merge', $PullRequest, '--squash', '--delete-branch', '--body', $record)
+Write-Host "Merged the update of $($shipped -join ', '). The weekly release publishes it."

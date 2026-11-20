@@ -13,7 +13,7 @@ Describe 'Reporting the results of new Umbraco releases' {
         $output | Should -Contain 'Passed: 18.3.2'
         $output | Should -Contain 'Failed: 17.8.2'
         ($output -join "`n") | Should -BeLike '*Would open the issue "Umbraco 17.8.2 fails the tests"*full: Patched_features_work_under_a_nested_https_path*'
-        ($output -join "`n") | Should -BeLike '*Would add Umbraco 18.3.2 unless listed already, commit to main and start release.yml.*'
+        ($output -join "`n") | Should -BeLike '*Would add Umbraco 18.3.2 unless listed already, commit to main and record them for the weekly release.*'
     }
 
     It 'fails every release when a summary is missing, as when its tests never ran' {

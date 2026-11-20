@@ -15,33 +15,27 @@ BeforeAll {
 }
 
 Describe 'Merging a Dependabot update' {
-    It 'merges a shipped patch update and releases a patch' {
+    It 'merges a shipped patch update and records a patch for the weekly release' {
         $output = Invoke-Merge @{ Ecosystem = 'nuget'; UpdateType = 'version-update:semver-patch'; Dependencies = 'OpenIddict.Server, xunit.v3' }
-        $output | Should -BeLike '*gh pr merge 7 --squash --delete-branch*'
-        $output | Should -BeLike '*gh workflow run release.yml --ref main -f test=false -f notes=Updates OpenIddict.Server. -f bump=patch*'
+        $output | Should -BeLike "*gh pr merge 7 --squash --delete-branch --body Release-Bump: patch`nRelease-Note: Updates OpenIddict.Server.*"
+        $output | Should -Not -BeLike '*workflow run*'
     }
 
-    It 'releases a minor version for a shipped minor update' {
+    It 'records a minor version for a shipped minor update' {
         Invoke-Merge @{ Ecosystem = 'nuget'; UpdateType = 'version-update:semver-minor'; Dependencies = 'Serilog' } |
-            Should -BeLike '*-f bump=minor*'
+            Should -BeLike "*--body Release-Bump: minor`nRelease-Note: Updates Serilog.*"
     }
 
-    It 'sends no bump to a package whose version follows the Umbraco release' {
-        $output = Invoke-Merge @{ Ecosystem = 'nuget'; UpdateType = 'version-update:semver-minor'; Dependencies = 'Serilog'; Versioning = 'umbraco' }
-        $output | Should -BeLike '*gh workflow run release.yml*'
-        $output | Should -Not -BeLike '*bump=*'
-    }
-
-    It 'merges a test package update without a release' {
+    It 'merges a test package update with nothing recorded' {
         $output = Invoke-Merge @{ Ecosystem = 'nuget'; UpdateType = 'version-update:semver-minor'; Dependencies = 'xunit.v3' }
         $output | Should -BeLike '*gh pr merge 7*'
-        $output | Should -Not -BeLike '*workflow run*'
+        $output | Should -Not -BeLike '*Release-*'
     }
 
-    It 'merges a major update of workflow actions without a release' {
+    It 'merges a major update of workflow actions with nothing recorded' {
         $output = Invoke-Merge @{ Ecosystem = 'github_actions'; UpdateType = 'version-update:semver-major'; Dependencies = 'actions/checkout' }
         $output | Should -BeLike '*gh pr merge 7*'
-        $output | Should -Not -BeLike '*workflow run*'
+        $output | Should -Not -BeLike '*Release-*'
     }
 
     It 'leaves a major package update for review' {
@@ -50,13 +44,13 @@ Describe 'Merging a Dependabot update' {
         $output | Should -Not -BeLike '*pr merge*'
     }
 
-    It 'releases an npm update only when the package embeds npm files and the update is not development-only' {
+    It 'records an npm update only when the package embeds npm files and the update is not development-only' {
         $npm = @{ Ecosystem = 'npm_and_yarn'; UpdateType = 'version-update:semver-minor' }
-        Invoke-Merge ($npm + @{ Dependencies = 'esbuild' }) | Should -Not -BeLike '*workflow run*'
+        Invoke-Merge ($npm + @{ Dependencies = 'esbuild' }) | Should -Not -BeLike '*Release-*'
         Invoke-Merge ($npm + @{ Dependencies = 'esbuild, playwright'; NpmShips = $true; NpmDevelopmentOnly = 'playwright,happy-dom' }) |
-            Should -BeLike '*-f notes=Updates esbuild. -f bump=patch*'
+            Should -BeLike "*--body Release-Bump: patch`nRelease-Note: Updates esbuild.*"
         Invoke-Merge ($npm + @{ Dependencies = 'playwright'; NpmShips = $true; NpmDevelopmentOnly = 'playwright,happy-dom' }) |
-            Should -Not -BeLike '*workflow run*'
+            Should -Not -BeLike '*Release-*'
     }
 
     It 'stops when no shipped project is found' {

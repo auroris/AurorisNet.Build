@@ -1,0 +1,72 @@
+name: Weekly release
+
+# The reusable half of each package's weekly-release.yml. Reads the commits on the default branch since the last release
+# tag. When one or more of them records an update that ships, a Dependabot update of a shipped package or a new Umbraco
+# release, it starts the package's Release workflow once, so a week brings one release at most. The calling workflow
+# supplies the schedule and grants actions write and contents read.
+on:
+  workflow_call:
+    inputs:
+      versioning:
+        description: semver for a package numbered MAJOR.MINOR.PATCH, or umbraco for a package whose version follows the Umbraco release.
+        type: string
+        default: semver
+      release-workflow:
+        description: The workflow file that publishes the package.
+        type: string
+        default: release.yml
+      dry-run:
+        description: true to show the release that would start, without starting it.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  # GitHub disables a scheduled workflow in a public repository after 60 days without activity there. Enabling the
+  # workflow again restarts that count, so the weekly run keeps its schedule through months without an update.
+  keep-enabled:
+    name: Keep the schedule enabled
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Enable the workflow again
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+        run: |
+          # The reference is owner/repository/.github/workflows/<file>@<ref>, which names the calling workflow's file.
+          $file = ($env:WORKFLOW_REF -split '@')[0] -replace '^.*/', ''
+          gh workflow enable $file --repo $env:GITHUB_REPOSITORY
+
+  # Reads commit messages and starts a workflow. It builds and runs none of the repository's code.
+  release:
+    name: Release the week's updates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      # The whole history and the tags, which tell the commits since the last release from the ones it published.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch || 'main' }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: auroris/AurorisNet.Build/actions/weekly-release@main
+        with:
+          versioning: ${{ inputs.versioning }}
+          release-workflow: ${{ inputs.release-workflow }}
+          branch: ${{ github.event.repository.default_branch || 'main' }}
+          dry-run: ${{ inputs.dry-run }}

@@ -1,0 +1,34 @@
+name: Start the weekly release
+description: Starts the Release workflow once for every update merged since the last release, or does nothing when there is none.
+
+# Used by the Weekly release workflow. Needs a checkout of the branch to release from, with the full history and the
+# tags, so check out with fetch-depth 0. Needs permission actions: write, which starts the Release workflow.
+inputs:
+  versioning:
+    description: semver for a package numbered MAJOR.MINOR.PATCH, or umbraco for a package whose version follows the Umbraco release.
+    default: semver
+  release-workflow:
+    description: The workflow file that publishes the package.
+    default: release.yml
+  branch:
+    description: The branch to release from, which is the one that is checked out.
+    default: main
+  dry-run:
+    description: true to print the release that would start, without starting it.
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Release the updates since the last release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        GH_REPO: ${{ github.repository }}
+        VERSIONING: ${{ inputs.versioning }}
+        RELEASE_WORKFLOW: ${{ inputs.release-workflow }}
+        BRANCH: ${{ inputs.branch }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        & (Join-Path $env:GITHUB_ACTION_PATH '../../scripts/Start-PendingRelease.ps1') -Versioning $env:VERSIONING `
+          -ReleaseWorkflow $env:RELEASE_WORKFLOW -Branch $env:BRANCH -DryRun:($env:DRY_RUN -eq 'true')

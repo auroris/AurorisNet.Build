@@ -1,19 +1,22 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-Acts on the results of testing new Umbraco releases: commits the releases that passed and starts the package's Release
-workflow, and opens an issue for each release that failed.
+Acts on the results of testing new Umbraco releases: commits the releases that passed, recorded for the weekly release,
+and opens an issue for each release that failed.
 
 .DESCRIPTION
 Reads the JSON summaries the tests wrote, each a list of objects with Release, Result, Tests and Failures. A release
 passed when it passed in every summary; a missing summary, from a step that never ran, fails every release.
 
 For the releases that passed, the script restores Directory.Build.props and the Markdown files from the last commit,
-adds the releases with Add-UmbracoRelease.ps1, commits the change to the branch and pushes it. It then starts the
-Release workflow with test set to false, because the tests have just run on these releases. A package numbered
-MAJOR.MINOR.PATCH gets -Bump auto, which raises the minor number when a release starts a new Umbraco minor version, such
-as 18.4.0, and the patch number otherwise. Before the package has a first release tag there is no number to raise, so
-the script commits the releases and leaves publishing the first version to a person.
+adds the releases with Add-UmbracoRelease.ps1, commits the change to the branch and pushes it. The commit message ends
+with two lines, which Start-PendingRelease.ps1 reads when the weekly release runs:
+
+    Release-Bump: patch
+    Release-Note: Adds Umbraco 18.3.2, which passed the tests in [the test run](https://github.com/...).
+
+Release-Bump is minor when a release starts a new Umbraco minor version, such as 18.4.0, which can add API surface, and
+patch otherwise. A package whose version follows the Umbraco release ignores it.
 
 For each release that failed, it opens an issue, or comments on the open issue with the same title. With -DryRun it
 prints what it would do and changes nothing. Exits with 1 when any release failed.
@@ -27,28 +30,19 @@ The JSON summaries to read, such as the tests' and the browser check's.
 .PARAMETER RunUrl
 The address of the workflow run, whose artifacts hold the logs.
 
-.PARAMETER Bump
-Empty for a package whose version follows the Umbraco release, such as 18.3.2.1. Use auto for a package numbered
-MAJOR.MINOR.PATCH.
-
-.PARAMETER ReleaseWorkflow
-The workflow file that publishes the package. Empty commits the releases without starting it.
-
 .PARAMETER Branch
-The branch to commit to and release from.
+The branch to commit to.
 
 .PARAMETER Repository
 The repository's root folder. Defaults to the current folder.
 
 .PARAMETER DryRun
-Prints the commit, the release and the issues instead of creating them.
+Prints the commit and the issues instead of creating them.
 #>
 param(
     [Parameter(Mandatory)][string[]] $Releases,
     [Parameter(Mandatory)][string[]] $Summaries,
     [string] $RunUrl = '',
-    [ValidateSet('', 'auto')][string] $Bump = '',
-    [string] $ReleaseWorkflow = 'release.yml',
     [string] $Branch = 'main',
     [string] $Repository = (Get-Location).Path,
     [switch] $DryRun
@@ -140,7 +134,7 @@ try {
     }
 
     if ($passed -and $DryRun) {
-        Write-Host "Would add Umbraco $($passed -join ', ') unless listed already, commit to $Branch and start $ReleaseWorkflow."
+        Write-Host "Would add Umbraco $($passed -join ', ') unless listed already, commit to $Branch and record them for the weekly release."
     }
     elseif ($passed) {
         # The tests ran with every tested release listed. Start again from the commit and add only those that passed.
@@ -154,7 +148,11 @@ try {
             $names = $added -join ', '
             Invoke-Checked git @('config', 'user.name', 'github-actions[bot]')
             Invoke-Checked git @('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
-            Invoke-Checked git @('commit', '--all', '-m', "Add Umbraco $names", '-m', "The tests passed on $names. $RunUrl".Trim())
+            # A release such as 18.4.0 starts a new Umbraco minor version, which can add API surface.
+            $bump = @($added | Where-Object { ([version] $_).Build -eq 0 }) ? 'minor' : 'patch'
+            # Start-PendingRelease.ps1 finds these lines in the commits since the last release tag.
+            $record = "Release-Bump: $bump`nRelease-Note: Adds Umbraco $names, which passed the tests in $link."
+            Invoke-Checked git @('commit', '--all', '-m', "Add Umbraco $names", '-m', "The tests passed on $names. $RunUrl".Trim(), '-m', $record)
             # Another commit can reach the branch while the tests run. Replay this one on top of it once.
             git push origin "HEAD:$Branch"
             if ($LASTEXITCODE -ne 0) {
@@ -162,23 +160,7 @@ try {
                 Invoke-Checked git @('push', 'origin', "HEAD:$Branch")
             }
 
-            $notes = "Adds Umbraco $names, which passed the tests in $link."
-            $inputs = @('-f', 'test=false', '-f', "notes=$notes")
-            $start = [bool] $ReleaseWorkflow
-            if ($start -and $Bump -eq 'auto') {
-                $tags = @(git ls-remote --tags --refs origin 'v*')
-                if ($LASTEXITCODE -ne 0) { throw 'Could not list the release tags.' }
-                if (-not $tags) {
-                    Write-Host "::notice::Umbraco $names is committed. The package has no release yet, so run $ReleaseWorkflow with its first version."
-                    $start = $false
-                }
-                # A release such as 18.4.0 starts a new Umbraco minor version, which can add API surface.
-                $inputs += @('-f', "bump=$(@($added | Where-Object { ([version] $_).Build -eq 0 }) ? 'minor' : 'patch')")
-            }
-            if ($start) {
-                Invoke-Checked gh (@('workflow', 'run', $ReleaseWorkflow, '--ref', $Branch) + $inputs)
-                Write-Host "Started $ReleaseWorkflow on $Branch for Umbraco $names."
-            }
+            Write-Host "Committed Umbraco $names to $Branch. The weekly release publishes it."
         }
     }
 }

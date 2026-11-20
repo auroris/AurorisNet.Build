@@ -1,21 +1,23 @@
 # Release automation
 
-Each AurorisNet package follows one primary dependency. When that dependency publishes a
-release, the package's repository tests the package on that release and, when the tests
-pass, publishes a new package version to nuget.org and GitHub. A person can also start a
-release by hand. One package, AurorisNet.ImageGallery.FFmpeg, releases by hand only.
+Each AurorisNet package follows one primary dependency. Once a week the package's repository
+looks for new releases of that dependency and tests the package on them. When the tests
+pass, it publishes one new package version to nuget.org and GitHub, which holds every update
+of that week. A person can also start a release by hand. One package,
+AurorisNet.ImageGallery.FFmpeg, releases by hand only.
 
-## The three workflows
+## The workflows
 
-Every package repository has the same three workflow files. Their shared steps come from
+Every package repository has the same workflow files. Their shared steps come from
 the actions and scripts in this repository, at `main`.
 
 | Workflow | Starts | What it does |
 |---|---|---|
-| `ci.yml` | A pull request, or by hand | Builds the package and runs its tests on the newest supported release of the primary dependency. Merges a Dependabot pull request that passes, and starts a release when the update changes what the package ships. |
-| `umbraco-releases.yml` (Umbraco packages) | Each week, or by hand | Looks on nuget.org for Umbraco releases the package does not list. Tests the package on those releases only. Adds each release that passes to `UmbracoReleases` on `main` and starts a release. Opens an issue for each release that fails. |
+| `ci.yml` | A pull request, or by hand | Builds the package and runs its tests on the newest supported release of the primary dependency. Merges a Dependabot pull request that passes, and records the update for the weekly release when it changes what the package ships. |
+| `umbraco-releases.yml` (Umbraco packages) | Each week, or by hand | Looks on nuget.org for Umbraco releases the package does not list. Tests the package on those releases only. Adds each release that passes to `UmbracoReleases` on `main`, recorded for the weekly release. Opens an issue for each release that fails. |
+| `weekly-release.yml` | Each week, the day after the two above, or by hand | Reads the commits on `main` since the last release tag. Starts one release when any of them records an update that ships, and none otherwise. |
 | `upstream.yml` (ImageGallery.FFmpeg, in place of the one above) | By hand | Looks for a newer stable FFmpeg release, checks its signature, moves the pin on `main` and starts a release. |
-| `release.yml` | By hand, or from the ones above | Chooses the version, runs the tests unless the caller has just run them, packs, pushes to nuget.org and publishes the GitHub release. |
+| `release.yml` | By hand, or from `weekly-release.yml` or `upstream.yml` | Chooses the version, runs the tests, packs, pushes to nuget.org and publishes the GitHub release. |
 
 The workflows test one release of the primary dependency: the newest, or the one that was
 just published. The full matrix of every supported release runs on a developer's machine,
@@ -42,31 +44,64 @@ changes the package's code.
 
 ## The weekly schedule
 
-Each repository looks for updates once a week: Dependabot checks its packages on one day,
-and `umbraco-releases.yml` runs on the same day. The days follow the order of the
+Each repository looks for updates on one day of the week and publishes on the next. On the
+first day Dependabot checks its packages and `umbraco-releases.yml` runs. On the second,
+`weekly-release.yml` publishes everything those checks merged as one release, so a
+repository has at most one automatic release in a week. The days follow the order of the
 dependencies, so an update reaches every package that builds on it within the week.
 
-| Day | Repositories | Picks up |
-|---|---|---|
-| Monday | IdentityServer, ImageGallery, ImageGallery.FFmpeg, InteractiveReports, Pressroom, ApplicationVirtualPathFix, BreakGlass, DisableTelemetry, Drawio, PageMedia | New releases of Umbraco and of the packages from outside the family |
-| Tuesday | AppBlocks, Umbraco.IdentityServer.Directory, Umbraco.IdentityServer.SSO | Monday's releases of IdentityServer, InteractiveReports and Pressroom, and new Umbraco releases |
-| Wednesday | AppHost | Tuesday's releases of AppBlocks and the two Umbraco IdentityServer packages, with Monday's releases of the other Umbraco packages |
+| Repositories | Checks | Releases | Picks up |
+|---|---|---|---|
+| IdentityServer, ImageGallery, InteractiveReports, Pressroom, ApplicationVirtualPathFix, BreakGlass, DisableTelemetry, Drawio, PageMedia | Monday | Tuesday | New releases of Umbraco and of the packages from outside the family |
+| AppBlocks, Umbraco.IdentityServer.Directory, Umbraco.IdentityServer.SSO | Wednesday | Thursday | Tuesday's releases of IdentityServer, InteractiveReports and Pressroom, and new Umbraco releases |
+| AppHost | Friday | Saturday | Thursday's releases of AppBlocks and the two Umbraco IdentityServer packages, with Tuesday's releases of the other Umbraco packages |
 
-The day is `schedule.day` in each repository's `.github/dependabot.yml`, and the last field
-of the `cron` line in its `umbraco-releases.yml`, where `1` is Monday. GitHub can start a
-scheduled workflow hours after the time in its `cron` line, so the order relies on the day
-alone.
+ImageGallery.FFmpeg checks its workflow actions on Monday and releases by hand.
 
-Each pull request that ships starts its own release. A repository whose weekly check opens
-two such pull requests, or also finds a new Umbraco release, publishes a release for each
-on that day.
+The check day is `schedule.day` in each repository's `.github/dependabot.yml`, and the last
+field of the `cron` line in its `umbraco-releases.yml`. The release day is the last field of
+the `cron` line in its `weekly-release.yml`. In a `cron` line, `1` is Monday. GitHub can
+start a scheduled workflow hours after the time in its `cron` line, so the order relies on
+the day alone.
+
+## How the weekly release combines updates
+
+An update that changes what a package ships is recorded in the message of its commit on
+`main`, as two lines:
+
+```text
+Release-Bump: patch
+Release-Note: Updates OpenIddict.Server.
+```
+
+`ci.yml` writes them when it merges a Dependabot update of a shipped package, and
+`umbraco-releases.yml` writes them when it commits an Umbraco release that passed the tests.
+
+`weekly-release.yml` reads the commits on `main` that no release tag reaches. When none of
+them has these lines, the week has no release. Otherwise it starts `release.yml` once:
+
+- `bump` is `minor` when any commit asks for `minor`, and `patch` otherwise. A package with
+  an Umbraco-aligned version gets no `bump`.
+- `notes` lists each `Release-Note`.
+- `test` stays on, so the release tests the week's updates together before it publishes.
+
+The release tag marks the commit that was published, which settles every update up to it.
+If `release.yml` fails before it reserves its tag, the next weekly run starts it again. To
+publish sooner, start `release.yml` by hand.
+
+To have the weekly release publish a change of your own, end its commit message with a
+`Release-Bump` line, and a `Release-Note` line for the release notes. To see what the next
+weekly release holds, run `weekly-release.yml` by hand with `dry-run`.
+
+A package with no release tag yet has no version to raise, so `weekly-release.yml` leaves
+the first release to a person: run `release.yml` with a version such as `1.0.0`.
 
 ## Version numbers
 
 **Semantic versions.** Most packages are numbered `MAJOR.MINOR.PATCH`. A release started by
-hand takes a version, or raises the newest release tag by a patch or minor number. An
-automatic release raises the minor number when the dependency published a minor release,
-which can add API surface, and the patch number otherwise. While a package's newest tag is
+hand takes a version, or raises the newest release tag by a patch or minor number. A
+weekly release raises the minor number when one of its updates is a minor release of a
+dependency, which can add API surface, and the patch number otherwise. While a package's newest tag is
 a prerelease such as `v0.1.0-alpha.1`, each release continues the series with
 `0.1.0-alpha.2`; enter a version by hand to leave it.
 
@@ -92,19 +127,17 @@ has no `version`, `bump` or `test` input.
    nuget.org published minutes ago.
 3. The **report** job reads the test summaries. For the releases that passed, it adds them
    to `UmbracoReleases`, updates the release ranges between the `umbraco-releases` markers
-   in the README, commits to `main` and starts `release.yml` with `test` set to `false`. For
-   each release that failed, it opens an issue titled `Umbraco <release> fails the tests`.
-4. `release.yml` publishes the package.
+   in the README and commits to `main`, with the lines that record the release for the
+   weekly release. For each release that failed, it opens an issue titled
+   `Umbraco <release> fails the tests`.
+4. The next day `weekly-release.yml` starts `release.yml`, which publishes the package with
+   the week's other updates.
 
 Close a failure issue once its cause is fixed. The next weekly run tests the release again.
 To test a release at once, run the workflow by hand and name the release.
 
 A new Umbraco major version gets an issue titled `Support Umbraco <major>`, because the
 package needs code changes before its tests can run on it.
-
-A package with no release tag yet has no version to raise. The workflow commits the new
-Umbraco release and leaves the first release to a person: run `release.yml` with a version
-such as `1.0.0`.
 
 ## How a Dependabot update becomes a package
 
@@ -114,8 +147,9 @@ them, and workflow actions. The Umbraco packages leave `Umbraco.Cms*` to
 
 - leaves a major version update of a package open, with a comment, for a person to review;
 - merges every other update;
-- starts `release.yml` when the update is of a package that a shipped project references.
-  Updates of test packages and workflow actions merge without a release.
+- records the update for the weekly release when it is of a package that a shipped project
+  references. Updates of test packages and workflow actions merge with nothing recorded, so
+  they bring no release.
 
 AppHost's pull request for a new Umbraco release groups Umbraco, uSync and the AurorisNet
 packages, because they must move together. Its build fails while AppBlocks,
@@ -202,7 +236,9 @@ its dependencies are on nuget.org:
 |---|---|---|
 | `actions/version` | Chooses the version and tag of a release. | `release.yml` in every repository |
 | `actions/publish` | Reserves the tag, pushes to nuget.org and publishes the GitHub release. | `release.yml` in every repository |
-| `actions/dependabot-release` | Merges a Dependabot pull request and starts a release when it ships. | `ci.yml` in every repository |
+| `actions/dependabot-release` | Merges a Dependabot pull request and records the update for the weekly release when it ships. | `ci.yml` in every repository |
+| `.github/workflows/weekly-release.yml` | The reusable Weekly release workflow. | `weekly-release.yml` in every repository that releases on a schedule |
+| `actions/weekly-release` | Starts one release for the updates recorded since the last release tag. | The reusable workflow |
 | `.github/workflows/umbraco-releases.yml` | The reusable New Umbraco releases workflow. | `umbraco-releases.yml` in the Umbraco repositories, except AppHost |
 | `actions/find-umbraco-releases`, `test-umbraco-releases`, `report-umbraco-releases` | The steps of that workflow. | The reusable workflow |
 | `scripts/` | The PowerShell behind the actions, with Pester tests. | The actions |
