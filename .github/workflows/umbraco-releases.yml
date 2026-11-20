@@ -61,7 +61,7 @@ defaults:
 
 jobs:
   # GitHub disables a scheduled workflow in a public repository after 60 days without activity there. Enabling the
-  # workflow again restarts that count, so the daily check keeps running while Umbraco publishes nothing.
+  # workflow again restarts that count, so the weekly check keeps running while Umbraco publishes nothing.
   keep-enabled:
     name: Keep the schedule enabled
     if: github.event_name == 'schedule'

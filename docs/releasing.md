@@ -13,7 +13,7 @@ the actions and scripts in this repository, at `main`.
 | Workflow | Starts | What it does |
 |---|---|---|
 | `ci.yml` | A pull request, or by hand | Builds the package and runs its tests on the newest supported release of the primary dependency. Merges a Dependabot pull request that passes, and starts a release when the update changes what the package ships. |
-| `umbraco-releases.yml` (Umbraco packages) | Each day, or by hand | Looks on nuget.org for Umbraco releases the package does not list. Tests the package on those releases only. Adds each release that passes to `UmbracoReleases` on `main` and starts a release. Opens an issue for each release that fails. |
+| `umbraco-releases.yml` (Umbraco packages) | Each week, or by hand | Looks on nuget.org for Umbraco releases the package does not list. Tests the package on those releases only. Adds each release that passes to `UmbracoReleases` on `main` and starts a release. Opens an issue for each release that fails. |
 | `upstream.yml` (ImageGallery.FFmpeg, in place of the one above) | By hand | Looks for a newer stable FFmpeg release, checks its signature, moves the pin on `main` and starts a release. |
 | `release.yml` | By hand, or from the ones above | Chooses the version, runs the tests unless the caller has just run them, packs, pushes to nuget.org and publishes the GitHub release. |
 
@@ -26,19 +26,40 @@ changes the package's code.
 
 | Repository | Packages | Primary dependency | Found by | Version numbers |
 |---|---|---|---|---|
-| [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `AurorisNet.IdentityServer`, `AurorisNet.ActiveDirectory`, `AurorisNet.IdentityServer.Directory` | OpenIddict | Dependabot, daily | `1.2.3` |
-| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | None: the application as a Windows ZIP on GitHub | Magick.NET, and `AurorisNet.ImageGallery.FFmpeg` | Dependabot, daily | `1.2.3` |
+| [AurorisNet.IdentityServer](https://github.com/auroris/AurorisNet.IdentityServer) | `AurorisNet.IdentityServer`, `AurorisNet.ActiveDirectory`, `AurorisNet.IdentityServer.Directory` | OpenIddict | Dependabot, weekly | `1.2.3` |
+| [AurorisNet.ImageGallery](https://github.com/auroris/AurorisNet.ImageGallery) | None: the application as a Windows ZIP on GitHub | Magick.NET, and `AurorisNet.ImageGallery.FFmpeg` | Dependabot, weekly | `1.2.3` |
 | [AurorisNet.ImageGallery.FFmpeg](https://github.com/auroris/AurorisNet.ImageGallery.FFmpeg) | `AurorisNet.ImageGallery.FFmpeg` | FFmpeg's stable releases | `upstream.yml`, started by hand | The FFmpeg release, such as `9.0.2` |
-| [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `AurorisNet.InteractiveReports`, `.Core`, `.AspNetCore`, `.Client.GraphQL`, `.Client.FileDownload` | The .NET platform packages (`Microsoft.Extensions.*`) | Dependabot, daily | `1.2.3` |
-| [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `AurorisNet.Pressroom.Client`, and the server as Windows and Linux archives | Microsoft.Playwright, which selects the Chromium build | Dependabot, daily | `1.2.3` |
-| [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `AurorisNet.Umbraco.AppBlocks`, `.Documents`, `.InteractiveReports`, `.Testing` | Umbraco | `umbraco-releases.yml` | `0.1.0-alpha.2` |
-| [AurorisNet.Umbraco.AppHost](https://github.com/auroris/AurorisNet.Umbraco.AppHost) | `AurorisNet.Umbraco.AppHost`, `.Testing` | AppBlocks, with the Umbraco release it pins | Dependabot, daily | `1.0.0-alpha.2` |
-| [AurorisNet.Umbraco.ApplicationVirtualPathFix](https://github.com/auroris/AurorisNet.Umbraco.ApplicationVirtualPathFix) | `AurorisNet.Umbraco.ApplicationVirtualPathFix` | Umbraco | `umbraco-releases.yml` | `18.3.2.1` |
-| [AurorisNet.Umbraco.BreakGlass](https://github.com/auroris/AurorisNet.Umbraco.BreakGlass) | `AurorisNet.Umbraco.BreakGlass` | Umbraco | `umbraco-releases.yml` | `1.2.3` |
-| [AurorisNet.Umbraco.DisableTelemetry](https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry) | `AurorisNet.Umbraco.DisableTelemetry` | Umbraco | `umbraco-releases.yml` | `18.3.2.1` |
-| [AurorisNet.Umbraco.Drawio](https://github.com/auroris/AurorisNet.Umbraco.Drawio) | `AurorisNet.Umbraco.Drawio`, `.Selfhosted` | Umbraco | `umbraco-releases.yml` | `1.2.3` |
-| [AurorisNet.Umbraco.IdentityServer.Directory](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.Directory) | `AurorisNet.Umbraco.IdentityServer.Directory` | Umbraco, and `AurorisNet.IdentityServer.Directory` | `umbraco-releases.yml` and Dependabot | `1.2.3` |
-| [AurorisNet.Umbraco.IdentityServer.SSO](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.SSO) | `AurorisNet.Umbraco.IdentityServer.SSO` | Umbraco, and `AurorisNet.IdentityServer` | `umbraco-releases.yml` and Dependabot | `1.2.3` |
+| [AurorisNet.InteractiveReports](https://github.com/auroris/AurorisNet.InteractiveReports) | `AurorisNet.InteractiveReports`, `.Core`, `.AspNetCore`, `.Client.GraphQL`, `.Client.FileDownload` | The .NET platform packages (`Microsoft.Extensions.*`) | Dependabot, weekly | `1.2.3` |
+| [AurorisNet.Pressroom](https://github.com/auroris/AurorisNet.Pressroom) | `AurorisNet.Pressroom.Client`, and the server as Windows and Linux archives | Microsoft.Playwright, which selects the Chromium build | Dependabot, weekly | `1.2.3` |
+| [AurorisNet.Umbraco.AppBlocks](https://github.com/auroris/AurorisNet.Umbraco.AppBlocks) | `AurorisNet.Umbraco.AppBlocks`, `.Documents`, `.InteractiveReports`, `.Testing` | Umbraco | `umbraco-releases.yml`, weekly | `0.1.0-alpha.2` |
+| [AurorisNet.Umbraco.AppHost](https://github.com/auroris/AurorisNet.Umbraco.AppHost) | `AurorisNet.Umbraco.AppHost`, `.Testing` | AppBlocks, with the Umbraco release it pins | Dependabot, weekly | `1.0.0-alpha.2` |
+| [AurorisNet.Umbraco.ApplicationVirtualPathFix](https://github.com/auroris/AurorisNet.Umbraco.ApplicationVirtualPathFix) | `AurorisNet.Umbraco.ApplicationVirtualPathFix` | Umbraco | `umbraco-releases.yml`, weekly | `18.3.2.1` |
+| [AurorisNet.Umbraco.BreakGlass](https://github.com/auroris/AurorisNet.Umbraco.BreakGlass) | `AurorisNet.Umbraco.BreakGlass` | Umbraco | `umbraco-releases.yml`, weekly | `1.2.3` |
+| [AurorisNet.Umbraco.DisableTelemetry](https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry) | `AurorisNet.Umbraco.DisableTelemetry` | Umbraco | `umbraco-releases.yml`, weekly | `18.3.2.1` |
+| [AurorisNet.Umbraco.Drawio](https://github.com/auroris/AurorisNet.Umbraco.Drawio) | `AurorisNet.Umbraco.Drawio`, `.Selfhosted` | Umbraco | `umbraco-releases.yml`, weekly | `1.2.3` |
+| [AurorisNet.Umbraco.IdentityServer.Directory](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.Directory) | `AurorisNet.Umbraco.IdentityServer.Directory` | Umbraco, and `AurorisNet.IdentityServer.Directory` | `umbraco-releases.yml` and Dependabot, weekly | `1.2.3` |
+| [AurorisNet.Umbraco.IdentityServer.SSO](https://github.com/auroris/AurorisNet.Umbraco.IdentityServer.SSO) | `AurorisNet.Umbraco.IdentityServer.SSO` | Umbraco, and `AurorisNet.IdentityServer` | `umbraco-releases.yml` and Dependabot, weekly | `1.2.3` |
+
+## The weekly schedule
+
+Each repository looks for updates once a week: Dependabot checks its packages on one day,
+and `umbraco-releases.yml` runs on the same day. The days follow the order of the
+dependencies, so an update reaches every package that builds on it within the week.
+
+| Day | Repositories | Picks up |
+|---|---|---|
+| Monday | IdentityServer, ImageGallery, ImageGallery.FFmpeg, InteractiveReports, Pressroom, ApplicationVirtualPathFix, BreakGlass, DisableTelemetry, Drawio, PageMedia | New releases of Umbraco and of the packages from outside the family |
+| Tuesday | AppBlocks, Umbraco.IdentityServer.Directory, Umbraco.IdentityServer.SSO | Monday's releases of IdentityServer, InteractiveReports and Pressroom, and new Umbraco releases |
+| Wednesday | AppHost | Tuesday's releases of AppBlocks and the two Umbraco IdentityServer packages, with Monday's releases of the other Umbraco packages |
+
+The day is `schedule.day` in each repository's `.github/dependabot.yml`, and the last field
+of the `cron` line in its `umbraco-releases.yml`, where `1` is Monday. GitHub can start a
+scheduled workflow hours after the time in its `cron` line, so the order relies on the day
+alone.
+
+Each pull request that ships starts its own release. A repository whose weekly check opens
+two such pull requests, or also finds a new Umbraco release, publishes a release for each
+on that day.
 
 ## Version numbers
 
@@ -62,7 +83,7 @@ has no `version`, `bump` or `test` input.
 
 ## How a new Umbraco release becomes a package
 
-1. `umbraco-releases.yml` runs each day. Its **find** job reads `UmbracoReleases` in
+1. `umbraco-releases.yml` runs once a week. Its **find** job reads `UmbracoReleases` in
    `Directory.Build.props` and the versions of `Umbraco.Cms` on nuget.org. A stable release
    newer than the newest listed release of its major version is new. A release whose
    failure issue is still open is skipped.
@@ -75,7 +96,7 @@ has no `version`, `bump` or `test` input.
    each release that failed, it opens an issue titled `Umbraco <release> fails the tests`.
 4. `release.yml` publishes the package.
 
-Close a failure issue once its cause is fixed. The next daily run tests the release again.
+Close a failure issue once its cause is fixed. The next weekly run tests the release again.
 To test a release at once, run the workflow by hand and name the release.
 
 A new Umbraco major version gets an issue titled `Support Umbraco <major>`, because the

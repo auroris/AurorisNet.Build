@@ -134,7 +134,7 @@ try {
                 ''
                 $details
                 ''
-                "The artifacts of $link hold the logs. Close this issue once the cause is fixed; the next daily run of the"
+                "The artifacts of $link hold the logs. Close this issue once the cause is fixed; the next weekly run of the"
                 'New Umbraco releases workflow tests the release again, or run it now with this release.'
             ) -join "`n")
     }
